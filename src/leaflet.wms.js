@@ -1,7 +1,7 @@
 /*!
  * leaflet.wms.js
  * A collection of Leaflet utilities for working with Web Mapping services.
- * (c) 2014-2016, Houston Engineering, Inc.
+ * (c) 2014-2017, Houston Engineering, Inc.
  * MIT License
  */
 
@@ -48,7 +48,11 @@ if (!('keys' in Object)) {
 wms.Source = L.Layer.extend({
     'options': {
         'untiled': true,
-        'identify': true
+        'identify': true,
+        'proxy': '',
+        'proxyIIS': '',
+        'callback': null,
+        'callbackparams': null,
     },
 
     'initialize': function(url, options) {
@@ -65,9 +69,9 @@ wms.Source = L.Layer.extend({
         // Create overlay with all options other than untiled & identify
         var overlayOptions = {};
         for (var opt in this.options) {
-            if (opt != 'untiled' && opt != 'identify') {
+            if (opt != 'untiled' && opt != 'identify' && opt != 'callback' && opt != 'callbackparams' && opt != 'proxy' && opt != 'proxyIIS') {
                 overlayOptions[opt] = this.options[opt];
-            }
+            }           
         }
         if (untiled) {
             return wms.overlay(this._url, overlayOptions);
@@ -156,7 +160,12 @@ wms.Source = L.Layer.extend({
         // (split from identify() to faciliate use outside of map events)
         var params = this.getFeatureInfoParams(point, layers),
             url = this._url + L.Util.getParamString(params, this._url);
-
+        
+        if (this.options.proxyIIS!='')
+            url = this.options.proxyIIS + url.replace('http://', '/');
+        if (this.options.proxy) 
+            url = this.options.proxy + encodeURIComponent(url);        
+        
         this.showWaiting();
         this.ajax(url, done);
 
@@ -215,7 +224,15 @@ wms.Source = L.Layer.extend({
         if (!this._map) {
             return;
         }
-        this._map.openPopup(info, latlng);
+        if (this.options.callback != null)
+        {
+            if (this.options.callbackparams == null)
+                this.options.callback(info);
+            else
+                this.options.callback(info, this.options.callbackparams);
+        }            
+        else
+            this._map.openPopup(info, latlng);
     },
 
     'showWaiting': function() {
